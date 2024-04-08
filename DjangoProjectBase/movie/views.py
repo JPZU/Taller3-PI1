@@ -123,3 +123,8 @@ def generate_bar_chart(data, xlabel, ylabel):
     buffer.close()
     graphic = base64.b64encode(image_png).decode('utf-8')
     return graphic
+
+def recommendations(request):
+   
+    context = {}
+    return render(request, 'recommendations.html', context)
