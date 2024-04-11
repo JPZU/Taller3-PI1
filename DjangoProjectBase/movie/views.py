@@ -1,5 +1,11 @@
+import os
 from django.shortcuts import render
 from django.http import HttpResponse
+from dotenv import load_dotenv
+import numpy as np
+from openai import OpenAI
+
+from movie.management.commands.check_rec_sys import cosine_similarity, get_embedding
 
 from .models import Movie
 
@@ -112,7 +118,7 @@ def generate_bar_chart(data, xlabel, ylabel):
     plt.bar(keys, data.values())
     plt.title('Movies Distribution')
     plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+    plt.ylabel(ylabel) 
     plt.xticks(rotation=90)
     plt.tight_layout()
     buffer = io.BytesIO()
@@ -125,6 +131,33 @@ def generate_bar_chart(data, xlabel, ylabel):
     return graphic
 
 def recommendations(request):
-   
-    context = {}
+    searchTerm = request.GET.get('searchMovie')
+    _ = load_dotenv('../openAI.env')
+    if searchTerm:
+        client = OpenAI(
+    # This is the default and can be omitted
+        api_key=os.environ.get('openAI_api_key'),
+        )
+        
+        items = Movie.objects.all()
+
+        req = searchTerm
+        emb_req = get_embedding(req, client)
+
+        sim = []
+        for i in range(len(items)):
+            emb = items[i].emb
+            emb = list(np.frombuffer(emb))
+            sim.append(cosine_similarity(emb,emb_req))
+        sim = np.array(sim)
+        idx = np.argmax(sim)
+        idx = int(idx)
+        movies = Movie.objects.filter(title__icontains=items[idx].title)
+    else:
+        movies = Movie.objects.all()
+
+    context = {'searchTerm':searchTerm, 
+               'movies':movies}
     return render(request, 'recommendations.html', context)
+
+
